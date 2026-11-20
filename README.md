@@ -1,4 +1,4 @@
-<p align="center"><img src="https://static0.cbrimages.com/wordpress/wp-content/uploads/2018/12/Edo-Tensei-e1603498222817.jpg?q=50&amp;fit=crop&amp;w=825&amp;dpr=1.5" alt="Edo Tensei" width="720"></p>
+<p align="center"><img src="https://static.wikia.nocookie.net/naruto/images/9/94/Akatsuki_revived.png/revision/latest?cb=20130111162505" alt="Edo Tensei" width="720"></p>
 
 # Edo Tensei for MiSTer
 
@@ -6,7 +6,7 @@ Independent fork of [SD-Installer-Win64_MiSTer](https://github.com/MiSTer-devel/
 Coreshell, corehost and Phosphor. Not affiliated with or endorsed by MiSTer-devel. Licence and copyright notices are
 unchanged from upstream.
 
-<sub>Image: Naruto Shippuden © Masashi Kishimoto / Shueisha · TV Tokyo · Pierrot.</sub>
+<sub>Images: Naruto Shippuden © Masashi Kishimoto / Shueisha · TV Tokyo · Pierrot (via Narutopedia).</sub>
 
 ---
 
