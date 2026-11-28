@@ -1,0 +1,78 @@
+# Edo Tensei follows MiSTer-devel: once a day MiSTer-devel's SD-Installer-Win64_MiSTer (master) is merged into this repo's
+# master. A merge that goes cleanly is pushed as f3bandit; one that doesn't (a conflict, or a change the workflow
+# isn't allowed to push, like one to .github/workflows) is left alone and reported in one issue (label
+# upstream-sync), which is closed again once a later sync goes through. Run it by hand from the Actions tab too.
+# Phosphor (test_bench) takes this repo's changes by hand, after its own trial build, never straight from here.
+name: Upstream sync
+on:
+  schedule:
+    - cron: "59 10 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency: upstream-sync
+env:
+  UPSTREAM: MiSTer-devel/SD-Installer-Win64_MiSTer
+  BRANCH: master
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+      - name: Merge MiSTer-devel
+        id: merge
+        run: |
+          git config user.name f3bandit
+          git config user.email 4943324+f3bandit@users.noreply.github.com
+          git fetch --no-tags "https://github.com/$UPSTREAM.git" "$BRANCH"
+          up=$(git rev-parse FETCH_HEAD)
+          echo "up=$up" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor "$up" HEAD; then
+            echo "state=current" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          new=$(git log --oneline HEAD.."$up" | wc -l)
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          if ! git merge --no-edit -m "Merge MiSTer-devel's $BRANCH ($(git rev-parse --short "$up"))" "$up" > merge.log 2>&1; then
+            git diff --name-only --diff-filter=U > conflicts.txt || true
+            git merge --abort || true
+            echo "state=conflict" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if ! git push origin "HEAD:$BRANCH" > push.log 2>&1; then
+            echo "state=push" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "state=merged" >> "$GITHUB_OUTPUT"
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ steps.merge.outputs.state }}
+          UP: ${{ steps.merge.outputs.up }}
+          NEW: ${{ steps.merge.outputs.new }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          echo "MiSTer-devel's $BRANCH at ${UP:0:7}: $STATE"
+          open=$(gh issue list --label upstream-sync --state open --json number --jq '.[0].number // empty')
+          case "$STATE" in
+            current|merged)
+              [ "$STATE" = merged ] && echo "merged $NEW new commits"
+              if [ -n "$open" ]; then
+                gh issue close "$open" --comment "MiSTer-devel's $BRANCH (${UP:0:7}) is merged now: $RUN"
+              fi ;;
+            conflict|push)
+              if [ "$STATE" = conflict ]; then
+                what="doesn't merge cleanly. Files in conflict:"$'\n\n'"$(sed 's/^/- /' conflicts.txt)"
+              else
+                what="merged, but the push was refused:"$'\n\n```\n'"$(tail -20 push.log)"$'\n```'
+              fi
+              body="MiSTer-devel's \`$BRANCH\` (${UP:0:7}, $NEW new commits) $what"$'\n\n'"Run: $RUN"$'\n\n'"Merge it by hand; this issue closes once a sync goes through."
+              gh label create upstream-sync --color FBCA04 --description "MiSTer-devel's changes not merged" 2>/dev/null || true
+              if [ -n "$open" ]; then
+                gh issue comment "$open" --body "$body"
+              else
+                gh issue create --label upstream-sync --title "MiSTer-devel's $BRANCH doesn't merge" --body "$body"
+              fi
+              exit 1 ;;
+          esac
